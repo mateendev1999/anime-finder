@@ -122,13 +122,17 @@ async function fetchAllAnime() {
   const uniqueAnime = [...new Map(allAnime.map(a => [a.id, a])).values()]
   console.log(`🧹 Unique: ${uniqueAnime.length}`)
 
-  uniqueAnime.sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+  // Filter out anime before 2010
+  const filteredAnime = uniqueAnime.filter(a => (a.startDate?.year || 0) >= 2010)
+  console.log(`📅 After 2010+: ${filteredAnime.length}`)
+
+  filteredAnime.sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
 
   const outputPath = path.join(__dirname, '../src/animeData.json')
   fs.writeFileSync(outputPath, JSON.stringify({
     lastUpdated: new Date().toISOString(),
-    count: uniqueAnime.length,
-    anime: uniqueAnime
+    count: filteredAnime.length,
+    anime: filteredAnime
   }))
 
   console.log(`💾 Saved: ${(fs.statSync(outputPath).size / 1024 / 1024).toFixed(2)} MB`)
