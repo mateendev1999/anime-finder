@@ -50,14 +50,14 @@ function CompactAnimeCard({ anime, onHide, relatedAnime, isExpanded, onToggleExp
               <span>👥 {anime.popularity ? (anime.popularity / 1000).toFixed(0) + 'k' : '?'}</span>
             </div>
           </div>
-          <div className="flex gap-1 mt-1 items-center">
-            {anime.genres?.slice(0, 2).map(genre => (
+          <div className="flex flex-wrap gap-1 mt-1 items-center">
+            {anime.genres?.map(genre => (
               <span key={genre} className="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded">
                 {genre}
               </span>
             ))}
             {hasRelated && (
-              <span className="text-[10px] text-purple-400 ml-auto">
+              <span className="text-[10px] text-purple-400 ml-auto flex-shrink-0">
                 {isExpanded ? '▲' : '▼'} {relatedAnime.length}
               </span>
             )}
@@ -177,7 +177,7 @@ function AnimeCard({ anime, isExpanded, onToggleExpand, relatedAnime, onHide }) 
           </div>
 
           <div className="flex flex-wrap gap-1 mb-3">
-            {anime.genres?.slice(0, 3).map(genre => (
+            {anime.genres?.map(genre => (
               <span
                 key={genre}
                 className="text-xs bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded-full"
