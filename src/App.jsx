@@ -100,6 +100,8 @@ function CompactAnimeCard({ anime, onHide, relatedAnime, isExpanded, onToggleExp
                   <span>{related.episodes || '?'} eps</span>
                   <span>•</span>
                   <span>⭐ {related.averageScore ? (related.averageScore / 10).toFixed(1) : 'N/A'}</span>
+                  <span>•</span>
+                  <span>👥 {related.popularity ? (related.popularity / 1000).toFixed(0) + 'k' : '?'}</span>
                 </div>
               </div>
             </div>
