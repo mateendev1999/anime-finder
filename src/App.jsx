@@ -272,7 +272,7 @@ function App() {
               <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
                 🎌 Anime Finder
               </h1>
-              <p className="text-sm text-green-400">🎙️ English Dubbed Only • {animeList.length} anime</p>
+              <p className="text-sm text-green-400">🎙️ English Dubbed Only • <span className="text-yellow-400 font-bold">{displayedAnime.length}</span> / {animeList.length} anime</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-slate-500">
