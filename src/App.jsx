@@ -7,6 +7,11 @@ const GENRES = [
   'Slice of Life', 'Sports', 'Supernatural', 'Thriller'
 ]
 
+const getAnikaiUrl = (anime) => {
+  const name = anime.title?.english || anime.title?.romaji || ''
+  return `https://anikai.to/browser?keyword=${encodeURIComponent(name)}&sort=most_relevance&language%5B%5D=dub`
+}
+
 // Compact card for mobile
 function CompactAnimeCard({ anime, onHide, relatedAnime, isExpanded, onToggleExpand }) {
   const borderColor = anime.coverImage?.color || '#8b5cf6'
@@ -26,9 +31,15 @@ function CompactAnimeCard({ anime, onHide, relatedAnime, isExpanded, onToggleExp
         />
         <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
           <div>
-            <h3 className="text-sm font-bold text-white line-clamp-2 leading-tight">
+            <a
+              href={getAnikaiUrl(anime)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-sm font-bold text-white line-clamp-2 leading-tight hover:text-purple-400 transition-colors"
+            >
               {anime.title?.english || anime.title?.romaji}
-            </h3>
+            </a>
             <div className="flex gap-2 mt-1 text-xs text-slate-400">
               <span>{anime.startDate?.year}</span>
               <span>•</span>
@@ -75,9 +86,14 @@ function CompactAnimeCard({ anime, onHide, relatedAnime, isExpanded, onToggleExp
                 className="w-10 h-14 object-cover rounded flex-shrink-0"
               />
               <div className="flex-1 min-w-0">
-                <h4 className="text-xs font-medium text-white line-clamp-1">
+                <a
+                  href={getAnikaiUrl(related)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-medium text-white line-clamp-1 hover:text-purple-400 transition-colors"
+                >
                   {related.title?.english || related.title?.romaji}
-                </h4>
+                </a>
                 <div className="flex gap-2 text-[10px] text-slate-400">
                   <span>{related.startDate?.year}</span>
                   <span>•</span>
@@ -134,9 +150,14 @@ function AnimeCard({ anime, isExpanded, onToggleExpand, relatedAnime, onHide }) 
         </div>
 
         <div className="p-4">
-          <h3 className="text-lg font-bold text-white mb-1 line-clamp-2">
+          <a
+            href={getAnikaiUrl(anime)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-lg font-bold text-white mb-1 line-clamp-2 block hover:text-purple-400 transition-colors"
+          >
             {anime.title?.english || anime.title?.romaji}
-          </h3>
+          </a>
           {anime.title?.english && anime.title?.romaji && anime.title.english !== anime.title.romaji && (
             <p className="text-sm text-slate-400 mb-2 line-clamp-1">{anime.title.romaji}</p>
           )}
@@ -201,9 +222,14 @@ function AnimeCard({ anime, isExpanded, onToggleExpand, relatedAnime, onHide }) 
                 className="w-16 h-20 object-cover rounded"
               />
               <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-medium text-white line-clamp-2">
+                <a
+                  href={getAnikaiUrl(related)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-white line-clamp-2 hover:text-purple-400 transition-colors"
+                >
                   {related.title?.english || related.title?.romaji}
-                </h4>
+                </a>
                 <div className="flex flex-wrap gap-2 mt-1 text-xs text-slate-400">
                   <span>📅 {related.startDate?.year || 'TBA'}</span>
                   <span>📺 {related.episodes || '?'} eps</span>
