@@ -12,6 +12,20 @@ const getAnikaiUrl = (anime) => {
   return `https://anikai.to/browser?keyword=${encodeURIComponent(name)}&sort=most_relevance&language%5B%5D=dub`
 }
 
+// Extract base franchise name by removing season/part indicators
+const getBaseFranchiseName = (anime) => {
+  const title = (anime.title?.english || anime.title?.romaji || '').toLowerCase()
+  return title
+    .replace(/\s*(season|part|cour)\s*\d+/gi, '')
+    .replace(/\s*(2nd|3rd|4th|5th|6th)\s*(season|part|cour)?/gi, '')
+    .replace(/\s*(ii|iii|iv|v|vi)(\s|$)/gi, ' ')
+    .replace(/\s*:\s*[^:]+$/, '') // Remove subtitle after colon
+    .replace(/\s*(the\s*)?(final|last)\s*(season|part|chapter)?/gi, '')
+    .replace(/\s*(ova|ona|special|movie|film)s?/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 // Compact card for mobile
 function CompactAnimeCard({ anime, onHide, relatedAnime, isExpanded, onToggleExpand }) {
   const borderColor = anime.coverImage?.color || '#8b5cf6'
@@ -358,41 +372,71 @@ function App() {
     }
 
     if (groupByFranchise) {
-      const seenFranchises = new Set()
-      const franchiseMap = new Map()
+      // Group by base franchise name
+      const franchiseGroups = new Map()
 
       filtered.forEach(anime => {
-        const relatedIds = new Set([anime.id])
-        const relatedAnime = []
+        const baseName = getBaseFranchiseName(anime)
+        if (!franchiseGroups.has(baseName)) {
+          franchiseGroups.set(baseName, [])
+        }
+        franchiseGroups.get(baseName).push(anime)
+      })
 
+      // Also add API relations to groups
+      filtered.forEach(anime => {
+        const baseName = getBaseFranchiseName(anime)
         anime.relations?.edges?.forEach(edge => {
           if (
             edge.node.type === 'ANIME' &&
             ['SEQUEL', 'PREQUEL', 'PARENT', 'SIDE_STORY', 'ALTERNATIVE'].includes(edge.relationType)
           ) {
-            relatedIds.add(edge.node.id)
-            relatedAnime.push(edge.node)
+            // Check if this related anime exists in our filtered list
+            const relatedInList = filtered.find(a => a.id === edge.node.id)
+            if (relatedInList) {
+              const relatedBaseName = getBaseFranchiseName(relatedInList)
+              // Merge groups if they have different base names
+              if (relatedBaseName !== baseName && franchiseGroups.has(relatedBaseName)) {
+                const toMerge = franchiseGroups.get(relatedBaseName)
+                franchiseGroups.get(baseName).push(...toMerge.filter(a =>
+                  !franchiseGroups.get(baseName).some(existing => existing.id === a.id)
+                ))
+                franchiseGroups.delete(relatedBaseName)
+              }
+            }
           }
         })
+      })
 
-        let franchiseId = anime.id
-        for (const id of relatedIds) {
-          if (seenFranchises.has(id)) {
-            franchiseId = id
-            break
-          }
-        }
+      // Convert groups to display format
+      const result = []
+      const seenIds = new Set()
 
-        if (!seenFranchises.has(franchiseId)) {
-          relatedIds.forEach(id => seenFranchises.add(id))
-          franchiseMap.set(anime.id, {
-            anime,
-            related: relatedAnime.sort((a, b) => (a.startDate?.year || 9999) - (b.startDate?.year || 9999))
-          })
+      franchiseGroups.forEach(group => {
+        // Sort by year, then by popularity
+        group.sort((a, b) => {
+          const yearA = a.startDate?.year || 9999
+          const yearB = b.startDate?.year || 9999
+          if (yearA !== yearB) return yearA - yearB
+          return (b.popularity || 0) - (a.popularity || 0)
+        })
+
+        // Main anime is the most popular one
+        const mainAnime = [...group].sort((a, b) => (b.popularity || 0) - (a.popularity || 0))[0]
+
+        if (!seenIds.has(mainAnime.id)) {
+          const related = group
+            .filter(a => a.id !== mainAnime.id)
+            .sort((a, b) => (a.startDate?.year || 9999) - (b.startDate?.year || 9999))
+
+          group.forEach(a => seenIds.add(a.id))
+          result.push({ anime: mainAnime, related })
         }
       })
 
-      return Array.from(franchiseMap.values())
+      // Sort final result by popularity
+      result.sort((a, b) => (b.anime.popularity || 0) - (a.anime.popularity || 0))
+      return result
     }
 
     return filtered.map(anime => ({ anime, related: [] }))
