@@ -7,6 +7,53 @@ const GENRES = [
   'Slice of Life', 'Sports', 'Supernatural', 'Thriller'
 ]
 
+// Compact card for mobile
+function CompactAnimeCard({ anime, onHide }) {
+  const borderColor = anime.coverImage?.color || '#8b5cf6'
+
+  return (
+    <div
+      className="bg-slate-800/80 rounded-lg overflow-hidden flex gap-3 p-2"
+      style={{ borderLeft: `3px solid ${borderColor}` }}
+    >
+      <img
+        src={anime.coverImage?.large}
+        alt={anime.title?.english || anime.title?.romaji}
+        className="w-16 h-24 object-cover rounded flex-shrink-0"
+      />
+      <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+        <div>
+          <h3 className="text-sm font-bold text-white line-clamp-2 leading-tight">
+            {anime.title?.english || anime.title?.romaji}
+          </h3>
+          <div className="flex gap-2 mt-1 text-xs text-slate-400">
+            <span>{anime.startDate?.year}</span>
+            <span>•</span>
+            <span>{anime.episodes || '?'} eps</span>
+            <span>•</span>
+            <span>⭐ {anime.averageScore ? (anime.averageScore / 10).toFixed(1) : 'N/A'}</span>
+          </div>
+        </div>
+        <div className="flex gap-1 mt-1">
+          {anime.genres?.slice(0, 2).map(genre => (
+            <span key={genre} className="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded">
+              {genre}
+            </span>
+          ))}
+        </div>
+      </div>
+      <button
+        onClick={() => onHide(anime.id)}
+        className="self-start p-1.5 bg-red-600/80 hover:bg-red-500 rounded text-xs"
+        title="Hide"
+      >
+        🗑️
+      </button>
+    </div>
+  )
+}
+
+// Full card for desktop
 function AnimeCard({ anime, isExpanded, onToggleExpand, relatedAnime, onHide }) {
   const [showDescription, setShowDescription] = useState(false)
   const borderColor = anime.coverImage?.color || '#8b5cf6'
@@ -377,8 +424,20 @@ function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <main className="max-w-7xl mx-auto px-4 py-4 sm:py-8">
+        {/* Compact mobile view */}
+        <div className="sm:hidden flex flex-col gap-2">
+          {displayedAnime.map(({ anime }) => (
+            <CompactAnimeCard
+              key={anime.id}
+              anime={anime}
+              onHide={hideAnime}
+            />
+          ))}
+        </div>
+
+        {/* Full desktop view */}
+        <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {displayedAnime.map(({ anime, related }) => (
             <AnimeCard
               key={anime.id}
