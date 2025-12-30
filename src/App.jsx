@@ -7,7 +7,7 @@ const GENRES = [
   'Slice of Life', 'Sports', 'Supernatural', 'Thriller'
 ]
 
-function AnimeCard({ anime, isExpanded, onToggleExpand, relatedAnime }) {
+function AnimeCard({ anime, isExpanded, onToggleExpand, relatedAnime, onHide }) {
   const [showDescription, setShowDescription] = useState(false)
   const borderColor = anime.coverImage?.color || '#8b5cf6'
 
@@ -28,8 +28,17 @@ function AnimeCard({ anime, isExpanded, onToggleExpand, relatedAnime }) {
             alt={anime.title?.english || anime.title?.romaji}
             className="w-full h-64 object-cover"
           />
-          <div className="absolute top-2 right-2 bg-purple-600/90 backdrop-blur-sm px-2 py-1 rounded-lg text-sm font-bold">
-            ⭐ {anime.averageScore ? (anime.averageScore / 10).toFixed(1) : 'N/A'}
+          <div className="absolute top-2 right-2 flex gap-1">
+            <div className="bg-purple-600/90 backdrop-blur-sm px-2 py-1 rounded-lg text-sm font-bold">
+              ⭐ {anime.averageScore ? (anime.averageScore / 10).toFixed(1) : 'N/A'}
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); onHide(anime.id); }}
+              className="bg-red-600/90 hover:bg-red-500 backdrop-blur-sm px-2 py-1 rounded-lg text-sm transition-colors"
+              title="Hide (already watched)"
+            >
+              🗑️
+            </button>
           </div>
           <div className="absolute top-2 left-2 bg-green-600/90 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-bold">
             🎙️ DUB
@@ -122,12 +131,32 @@ function AnimeCard({ anime, isExpanded, onToggleExpand, relatedAnime }) {
   )
 }
 
+const HIDDEN_ANIME_KEY = 'anime-finder-hidden'
+
 function App() {
   const [selectedGenres, setSelectedGenres] = useState([])
   const [selectedYears, setSelectedYears] = useState([])
-  const [minScore, setMinScore] = useState(0)
+  const [selectedScore, setSelectedScore] = useState(0)
   const [groupByFranchise, setGroupByFranchise] = useState(false)
   const [expandedFranchises, setExpandedFranchises] = useState(new Set())
+  const [hiddenAnime, setHiddenAnime] = useState(() => {
+    const saved = localStorage.getItem(HIDDEN_ANIME_KEY)
+    return saved ? new Set(JSON.parse(saved)) : new Set()
+  })
+
+  const hideAnime = (id) => {
+    setHiddenAnime(prev => {
+      const newSet = new Set(prev)
+      newSet.add(id)
+      localStorage.setItem(HIDDEN_ANIME_KEY, JSON.stringify([...newSet]))
+      return newSet
+    })
+  }
+
+  const clearHidden = () => {
+    setHiddenAnime(new Set())
+    localStorage.removeItem(HIDDEN_ANIME_KEY)
+  }
 
   const animeList = animeData.anime
   const lastUpdated = animeData.lastUpdated
@@ -163,18 +192,27 @@ function App() {
   const displayedAnime = useMemo(() => {
     let filtered = [...animeList]
 
-    // Filter by selected years
+    // Filter out hidden anime
+    filtered = filtered.filter(anime => !hiddenAnime.has(anime.id))
+
+    // Filter by year (default: 2010+)
     if (selectedYears.length > 0) {
       filtered = filtered.filter(anime =>
         selectedYears.includes(anime.startDate?.year)
       )
+    } else {
+      // Default: only show anime from 2010+
+      filtered = filtered.filter(anime =>
+        (anime.startDate?.year || 0) >= 2010
+      )
     }
 
-    // Filter by minimum score
-    if (minScore > 0) {
-      filtered = filtered.filter(anime =>
-        (anime.averageScore || 0) >= minScore
-      )
+    // Filter by score range (6=6-6.9, 7=7-7.9, etc)
+    if (selectedScore > 0) {
+      filtered = filtered.filter(anime => {
+        const score = anime.averageScore || 0
+        return score >= selectedScore && score < selectedScore + 10
+      })
     }
 
     // Filter by selected genres
@@ -223,7 +261,7 @@ function App() {
     }
 
     return filtered.map(anime => ({ anime, related: [] }))
-  }, [animeList, selectedYears, minScore, selectedGenres, groupByFranchise])
+  }, [animeList, hiddenAnime, selectedYears, selectedScore, selectedGenres, groupByFranchise])
 
   return (
     <div className="min-h-screen text-white">
@@ -274,19 +312,19 @@ function App() {
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-400">Score:</span>
-              <select
-                value={minScore}
-                onChange={(e) => setMinScore(parseInt(e.target.value))}
-                className="bg-slate-700 text-white px-2 py-1 rounded-lg text-sm"
-              >
-                <option value={0}>All</option>
-                <option value={60}>6+</option>
-                <option value={70}>7+</option>
-                <option value={75}>7.5+</option>
-                <option value={80}>8+</option>
-                <option value={85}>8.5+</option>
-                <option value={90}>9+</option>
-              </select>
+              {[0, 60, 70, 80, 90].map(score => (
+                <button
+                  key={score}
+                  onClick={() => setSelectedScore(score === selectedScore ? 0 : score)}
+                  className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                    selectedScore === score
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                  {score === 0 ? 'All' : `${score/10}`}
+                </button>
+              ))}
             </div>
 
             <div className="flex items-center">
@@ -301,6 +339,15 @@ function App() {
                 <span className="ml-2 text-sm text-slate-300">Group by Franchise</span>
               </label>
             </div>
+
+            {hiddenAnime.size > 0 && (
+              <button
+                onClick={clearHidden}
+                className="px-3 py-1 text-xs bg-orange-600/80 hover:bg-orange-500 rounded-full text-white transition-colors"
+              >
+                Restore {hiddenAnime.size} hidden
+              </button>
+            )}
           </div>
 
           {/* Genre Filters */}
@@ -339,6 +386,7 @@ function App() {
               relatedAnime={related}
               isExpanded={expandedFranchises.has(anime.id)}
               onToggleExpand={() => toggleFranchise(anime.id)}
+              onHide={hideAnime}
             />
           ))}
         </div>
