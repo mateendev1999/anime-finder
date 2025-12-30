@@ -8,47 +8,88 @@ const GENRES = [
 ]
 
 // Compact card for mobile
-function CompactAnimeCard({ anime, onHide }) {
+function CompactAnimeCard({ anime, onHide, relatedAnime, isExpanded, onToggleExpand }) {
   const borderColor = anime.coverImage?.color || '#8b5cf6'
+  const hasRelated = relatedAnime && relatedAnime.length > 0
 
   return (
-    <div
-      className="bg-slate-800/80 rounded-lg overflow-hidden flex gap-3 p-2"
-      style={{ borderLeft: `3px solid ${borderColor}` }}
-    >
-      <img
-        src={anime.coverImage?.large}
-        alt={anime.title?.english || anime.title?.romaji}
-        className="w-16 h-24 object-cover rounded flex-shrink-0"
-      />
-      <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
-        <div>
-          <h3 className="text-sm font-bold text-white line-clamp-2 leading-tight">
-            {anime.title?.english || anime.title?.romaji}
-          </h3>
-          <div className="flex gap-2 mt-1 text-xs text-slate-400">
-            <span>{anime.startDate?.year}</span>
-            <span>•</span>
-            <span>{anime.episodes || '?'} eps</span>
-            <span>•</span>
-            <span>⭐ {anime.averageScore ? (anime.averageScore / 10).toFixed(1) : 'N/A'}</span>
+    <div className="flex flex-col">
+      <div
+        className="bg-slate-800/80 rounded-lg overflow-hidden flex gap-3 p-2"
+        style={{ borderLeft: `3px solid ${borderColor}` }}
+        onClick={hasRelated ? onToggleExpand : undefined}
+      >
+        <img
+          src={anime.coverImage?.large}
+          alt={anime.title?.english || anime.title?.romaji}
+          className="w-16 h-24 object-cover rounded flex-shrink-0"
+        />
+        <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+          <div>
+            <h3 className="text-sm font-bold text-white line-clamp-2 leading-tight">
+              {anime.title?.english || anime.title?.romaji}
+            </h3>
+            <div className="flex gap-2 mt-1 text-xs text-slate-400">
+              <span>{anime.startDate?.year}</span>
+              <span>•</span>
+              <span>{anime.episodes || '?'} eps</span>
+              <span>•</span>
+              <span>⭐ {anime.averageScore ? (anime.averageScore / 10).toFixed(1) : 'N/A'}</span>
+              <span>•</span>
+              <span>👥 {anime.popularity ? (anime.popularity / 1000).toFixed(0) + 'k' : '?'}</span>
+            </div>
+          </div>
+          <div className="flex gap-1 mt-1 items-center">
+            {anime.genres?.slice(0, 2).map(genre => (
+              <span key={genre} className="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded">
+                {genre}
+              </span>
+            ))}
+            {hasRelated && (
+              <span className="text-[10px] text-purple-400 ml-auto">
+                {isExpanded ? '▲' : '▼'} {relatedAnime.length}
+              </span>
+            )}
           </div>
         </div>
-        <div className="flex gap-1 mt-1">
-          {anime.genres?.slice(0, 2).map(genre => (
-            <span key={genre} className="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded">
-              {genre}
-            </span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onHide(anime.id); }}
+          className="self-start p-1.5 bg-red-600/80 hover:bg-red-500 rounded text-xs"
+          title="Hide"
+        >
+          🗑️
+        </button>
+      </div>
+
+      {/* Related anime for mobile */}
+      {isExpanded && hasRelated && (
+        <div className="ml-4 mt-1 space-y-1 border-l-2 border-purple-600/50 pl-2">
+          {relatedAnime.map(related => (
+            <div
+              key={related.id}
+              className="bg-slate-800/60 rounded p-2 flex gap-2 items-center"
+            >
+              <img
+                src={related.coverImage?.large}
+                alt={related.title?.english || related.title?.romaji}
+                className="w-10 h-14 object-cover rounded flex-shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <h4 className="text-xs font-medium text-white line-clamp-1">
+                  {related.title?.english || related.title?.romaji}
+                </h4>
+                <div className="flex gap-2 text-[10px] text-slate-400">
+                  <span>{related.startDate?.year}</span>
+                  <span>•</span>
+                  <span>{related.episodes || '?'} eps</span>
+                  <span>•</span>
+                  <span>⭐ {related.averageScore ? (related.averageScore / 10).toFixed(1) : 'N/A'}</span>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
-      </div>
-      <button
-        onClick={() => onHide(anime.id)}
-        className="self-start p-1.5 bg-red-600/80 hover:bg-red-500 rounded text-xs"
-        title="Hide"
-      >
-        🗑️
-      </button>
+      )}
     </div>
   )
 }
@@ -181,7 +222,8 @@ function AnimeCard({ anime, isExpanded, onToggleExpand, relatedAnime, onHide }) 
 const HIDDEN_ANIME_KEY = 'anime-finder-hidden'
 
 function App() {
-  const [selectedGenres, setSelectedGenres] = useState([])
+  const [includeGenres, setIncludeGenres] = useState([])
+  const [excludeGenres, setExcludeGenres] = useState([])
   const [selectedYears, setSelectedYears] = useState([])
   const [selectedScore, setSelectedScore] = useState(0)
   const [groupByFranchise, setGroupByFranchise] = useState(false)
@@ -206,7 +248,6 @@ function App() {
   }
 
   const animeList = animeData.anime
-  const lastUpdated = animeData.lastUpdated
 
   const toggleFranchise = (animeId) => {
     setExpandedFranchises(prev => {
@@ -220,12 +261,24 @@ function App() {
     })
   }
 
+  // Cycle: neutral -> include (+) -> exclude (-) -> neutral
   const toggleGenre = (genre) => {
-    setSelectedGenres(prev =>
-      prev.includes(genre)
-        ? prev.filter(g => g !== genre)
-        : [...prev, genre]
-    )
+    if (includeGenres.includes(genre)) {
+      // Was include, now exclude
+      setIncludeGenres(prev => prev.filter(g => g !== genre))
+      setExcludeGenres(prev => [...prev, genre])
+    } else if (excludeGenres.includes(genre)) {
+      // Was exclude, now neutral
+      setExcludeGenres(prev => prev.filter(g => g !== genre))
+    } else {
+      // Was neutral, now include
+      setIncludeGenres(prev => [...prev, genre])
+    }
+  }
+
+  const clearGenres = () => {
+    setIncludeGenres([])
+    setExcludeGenres([])
   }
 
   const toggleYear = (year) => {
@@ -262,10 +315,17 @@ function App() {
       })
     }
 
-    // Filter by selected genres
-    if (selectedGenres.length > 0) {
+    // Filter by included genres (must have all)
+    if (includeGenres.length > 0) {
       filtered = filtered.filter(anime =>
-        selectedGenres.every(genre => anime.genres?.includes(genre))
+        includeGenres.every(genre => anime.genres?.includes(genre))
+      )
+    }
+
+    // Filter by excluded genres (must not have any)
+    if (excludeGenres.length > 0) {
+      filtered = filtered.filter(anime =>
+        !excludeGenres.some(genre => anime.genres?.includes(genre))
       )
     }
 
@@ -308,26 +368,39 @@ function App() {
     }
 
     return filtered.map(anime => ({ anime, related: [] }))
-  }, [animeList, hiddenAnime, selectedYears, selectedScore, selectedGenres, groupByFranchise])
+  }, [animeList, hiddenAnime, selectedYears, selectedScore, includeGenres, excludeGenres, groupByFranchise])
 
   return (
     <div className="min-h-screen text-white">
       <header className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md border-b border-purple-800/30 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-start mb-1">
+        <div className="max-w-7xl mx-auto px-4 py-2 sm:py-4">
+          <div className="flex justify-between items-center mb-1">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
                 🎌 Anime Finder
               </h1>
-              <p className="text-sm text-green-400">🎙️ English Dubbed Only • <span className="text-yellow-400 font-bold">{displayedAnime.length}</span> / {animeList.length} anime</p>
+              <p className="text-xs sm:text-sm text-green-400">🎙️ DUB • <span className="text-yellow-400 font-bold">{displayedAnime.length}</span>/{animeList.length}</p>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-slate-500">
-                Last update: {new Date(lastUpdated).toLocaleDateString()}
-              </p>
-              <p className="text-xs text-slate-600">
-                Run: npm run fetch-anime
-              </p>
+            <div className="flex items-center gap-2">
+              {/* Group by Franchise toggle - compact on mobile */}
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={groupByFranchise}
+                  onChange={(e) => setGroupByFranchise(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 sm:w-11 sm:h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                <span className="ml-1 text-xs sm:text-sm text-slate-300 hidden sm:inline">Franchise</span>
+              </label>
+              {hiddenAnime.size > 0 && (
+                <button
+                  onClick={clearHidden}
+                  className="px-2 py-0.5 text-xs bg-orange-600/80 hover:bg-orange-500 rounded-full text-white"
+                >
+                  +{hiddenAnime.size}
+                </button>
+              )}
             </div>
           </div>
 
@@ -373,53 +446,37 @@ function App() {
                 </button>
               ))}
             </div>
-
-            <div className="flex items-center">
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={groupByFranchise}
-                  onChange={(e) => setGroupByFranchise(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                <span className="ml-2 text-sm text-slate-300">Group by Franchise</span>
-              </label>
-            </div>
-
-            {hiddenAnime.size > 0 && (
-              <button
-                onClick={clearHidden}
-                className="px-3 py-1 text-xs bg-orange-600/80 hover:bg-orange-500 rounded-full text-white transition-colors"
-              >
-                Restore {hiddenAnime.size} hidden
-              </button>
-            )}
           </div>
 
           {/* Genre Filters */}
           <div className="mt-3 flex flex-wrap gap-2">
-            {selectedGenres.length > 0 && (
+            {(includeGenres.length > 0 || excludeGenres.length > 0) && (
               <button
-                onClick={() => setSelectedGenres([])}
+                onClick={clearGenres}
                 className="px-3 py-1 text-xs bg-red-600/80 hover:bg-red-500 rounded-full text-white transition-colors"
               >
-                Clear All
+                Clear
               </button>
             )}
-            {GENRES.map(genre => (
-              <button
-                key={genre}
-                onClick={() => toggleGenre(genre)}
-                className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                  selectedGenres.includes(genre)
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                {genre}
-              </button>
-            ))}
+            {GENRES.map(genre => {
+              const isIncluded = includeGenres.includes(genre)
+              const isExcluded = excludeGenres.includes(genre)
+              return (
+                <button
+                  key={genre}
+                  onClick={() => toggleGenre(genre)}
+                  className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                    isIncluded
+                      ? 'bg-green-600 text-white'
+                      : isExcluded
+                      ? 'bg-red-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                  {isIncluded ? '+' : isExcluded ? '-' : ''}{genre}
+                </button>
+              )
+            })}
           </div>
         </div>
       </header>
@@ -427,11 +484,14 @@ function App() {
       <main className="max-w-7xl mx-auto px-4 py-4 sm:py-8">
         {/* Compact mobile view */}
         <div className="sm:hidden flex flex-col gap-2">
-          {displayedAnime.map(({ anime }) => (
+          {displayedAnime.map(({ anime, related }) => (
             <CompactAnimeCard
               key={anime.id}
               anime={anime}
               onHide={hideAnime}
+              relatedAnime={related}
+              isExpanded={expandedFranchises.has(anime.id)}
+              onToggleExpand={() => toggleFranchise(anime.id)}
             />
           ))}
         </div>
