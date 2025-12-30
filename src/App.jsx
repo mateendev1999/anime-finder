@@ -383,24 +383,31 @@ function App() {
         franchiseGroups.get(baseName).push(anime)
       })
 
-      // Also add API relations to groups
+      // Also add API relations to groups - merge related franchises
       filtered.forEach(anime => {
         const baseName = getBaseFranchiseName(anime)
+        // Skip if this anime's group was already merged into another
+        if (!franchiseGroups.has(baseName)) return
+
         anime.relations?.edges?.forEach(edge => {
           if (
             edge.node.type === 'ANIME' &&
             ['SEQUEL', 'PREQUEL', 'PARENT', 'SIDE_STORY', 'ALTERNATIVE'].includes(edge.relationType)
           ) {
-            // Check if this related anime exists in our filtered list
             const relatedInList = filtered.find(a => a.id === edge.node.id)
             if (relatedInList) {
               const relatedBaseName = getBaseFranchiseName(relatedInList)
-              // Merge groups if they have different base names
-              if (relatedBaseName !== baseName && franchiseGroups.has(relatedBaseName)) {
+              // Merge groups if they have different base names and both exist
+              if (relatedBaseName !== baseName &&
+                  franchiseGroups.has(relatedBaseName) &&
+                  franchiseGroups.has(baseName)) {
                 const toMerge = franchiseGroups.get(relatedBaseName)
-                franchiseGroups.get(baseName).push(...toMerge.filter(a =>
-                  !franchiseGroups.get(baseName).some(existing => existing.id === a.id)
-                ))
+                const currentGroup = franchiseGroups.get(baseName)
+                toMerge.forEach(a => {
+                  if (!currentGroup.some(existing => existing.id === a.id)) {
+                    currentGroup.push(a)
+                  }
+                })
                 franchiseGroups.delete(relatedBaseName)
               }
             }
